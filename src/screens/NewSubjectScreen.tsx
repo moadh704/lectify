@@ -11,6 +11,7 @@ export default function NewSubjectScreen({ navigation }: NewSubjectScreenProps) 
   const [description, setDescription] = React.useState('');
 
   const handleCreate = () => {
+    // Placeholder - will connect to data layer in Step 5
     if (name.trim()) {
       navigation.goBack();
     }
@@ -39,14 +40,17 @@ export default function NewSubjectScreen({ navigation }: NewSubjectScreenProps) 
             autoFocus
           />
 
-          <Text style={[styles.label, { color: colors.text, marginTop: spacing.lg }]}>Description (optional)</Text>
+          <Text style={[styles.label, { color: colors.text, marginTop: spacing.xl }]}>Description (optional)</Text>
+          <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+            Professor name, schedule, room number, etc.
+          </Text>
           <TextInput
             style={[styles.input, styles.multilineInput, { 
               backgroundColor: colors.surface, 
               color: colors.text,
               borderColor: colors.border 
             }]}
-            placeholder="Professor, schedule, room..."
+            placeholder="e.g. Dr. Smith • Mon/Wed 10am • Room 204"
             placeholderTextColor={colors.textSecondary}
             value={description}
             onChangeText={setDescription}
@@ -55,7 +59,13 @@ export default function NewSubjectScreen({ navigation }: NewSubjectScreenProps) 
         </View>
 
         <TouchableOpacity 
-          style={[styles.createButton, { backgroundColor: colors.primary }]}
+          style={[
+            styles.createButton, 
+            { 
+              backgroundColor: colors.primary,
+              opacity: name.trim() ? 1 : 0.5 
+            }
+          ]}
           onPress={handleCreate}
           disabled={!name.trim()}
         >
@@ -67,13 +77,52 @@ export default function NewSubjectScreen({ navigation }: NewSubjectScreenProps) 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  keyboardView: { flex: 1, justifyContent: 'space-between' },
-  content: { flex: 1, padding: spacing.lg },
-  title: { fontSize: 24, fontWeight: '700', marginBottom: spacing.xl },
-  label: { fontSize: 14, fontWeight: '500', marginBottom: spacing.sm },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: spacing.md, fontSize: 16 },
-  multilineInput: { minHeight: 100, textAlignVertical: 'top' },
-  createButton: { margin: spacing.lg, paddingVertical: spacing.md, borderRadius: 12, alignItems: 'center' },
-  createButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '600' },
+  container: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '700',
+    marginBottom: spacing.xxl,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: spacing.sm,
+  },
+  helperText: {
+    fontSize: 13,
+    marginBottom: spacing.sm,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 16,
+  },
+  multilineInput: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  createButton: {
+    margin: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
 });
