@@ -1,2 +1,3 @@
-// Shared constants (colors, spacing, typography will be added in Step 2)
-export {};
+export * from './colors';
+export * from './spacing';
+export * from './typography';
