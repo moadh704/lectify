@@ -1,19 +1,27 @@
 import React from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { NewSubjectScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
+import { saveSubject } from '@/utils/subjectStorage';
 
 export default function NewSubjectScreen({ navigation }: NewSubjectScreenProps) {
   const { colors } = useTheme();
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
 
-  const handleCreate = () => {
-    // Placeholder - will connect to data layer in Step 5
-    if (name.trim()) {
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+
+    try {
+      await saveSubject({
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
       navigation.goBack();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create subject. Please try again.');
     }
   };
 

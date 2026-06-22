@@ -1,18 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { HomeScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
+import { getSubjects } from '@/utils/subjectStorage';
+import { Subject } from '@/types';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Placeholder subjects for skeleton
-  const placeholderSubjects = [
-    { id: '1', name: 'Calculus II', noteCount: 12, lastEdited: 'Jun 20' },
-    { id: '2', name: 'Organic Chemistry', noteCount: 7, lastEdited: 'Jun 18' },
-  ];
+  const loadSubjects = async () => {
+    try {
+      const data = await getSubjects();
+      setSubjects(data);
+    } catch (error) {
+      console.error('Failed to load subjects', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reload subjects every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadSubjects();
+    }, [])
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -32,26 +49,35 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
       {/* Subjects List */}
       <View style={styles.content}>
-        {placeholderSubjects.length > 0 ? (
+        {subjects.length > 0 ? (
           <FlatList
-            data={placeholderSubjects}
+            data={subjects}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.subjectRow, { backgroundColor: colors.surface }]}
-                onPress={() => navigation.navigate('Subject', { 
-                  subjectId: item.id, 
-                  subjectName: item.name 
-                })}
-              >
-                <View style={styles.subjectContent}>
-                  <Text style={[styles.subjectName, { color: colors.text }]}>{item.name}</Text>
-                  <Text style={[styles.subjectMeta, { color: colors.textSecondary }]}>
-                    {item.noteCount} notes • Last edited {item.lastEdited}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              // Format date nicely
+              const date = new Date(item.updatedAt);
+              const formattedDate = date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              });
+
+              return (
+                <TouchableOpacity
+                  style={[styles.subjectRow, { backgroundColor: colors.surface }]}
+                  onPress={() => navigation.navigate('Subject', { 
+                    subjectId: item.id, 
+                    subjectName: item.name 
+                  })}
+                >
+                  <View style={styles.subjectContent}>
+                    <Text style={[styles.subjectName, { color: colors.text }]}>{item.name}</Text>
+                    <Text style={[styles.subjectMeta, { color: colors.textSecondary }]}>
+                      {item.description || 'No description'} • Updated {formattedDate}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
             ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
           />
         ) : (
