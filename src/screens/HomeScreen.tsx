@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { HomeScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
-import { getSubjects } from '@/utils/subjectStorage';
+import { getSubjects, deleteSubject } from '@/utils/subjectStorage';
 import { getNotes } from '@/utils/noteStorage';
 import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Multi-select state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const loadSubjects = async () => {
     try {
@@ -35,7 +39,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
     setIsSearching(true);
     try {
-      const allNotes = await getNotes(); // all notes
+      const allNotes = await getNotes();
       const allSubjects = await getSubjects();
 
       const lowerQuery = query.toLowerCase();
@@ -76,6 +80,46 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     performGlobalSearch(text);
   };
 
+  // Multi-select helpers
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+
+    if (newSelected.size === 0) {
+      setIsSelectionMode(false);
+    }
+  };
+
+  const enterSelectionMode = (id: string) => {
+    setIsSelectionMode(true);
+    const newSelected = new Set<string>([id]);
+    setSelectedIds(newSelected);
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const deleteSelectedSubjects = async () => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map(id => deleteSubject(id))
+      );
+      await loadSubjects();
+      exitSelectionMode();
+    } catch (error) {
+      console.error('Failed to delete subjects', error);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
@@ -102,7 +146,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       {/* Content: Either Search Results or Subject List */}
       <View style={styles.content}>
         {searchQuery.length > 0 ? (
-          // Global Search Results
           searchResults.length > 0 ? (
             <FlatList
               data={searchResults}
@@ -138,7 +181,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </View>
           )
         ) : (
-          // Normal Subject List
           subjects.length > 0 ? (
             <FlatList
               data={subjects}
@@ -149,11 +191,27 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
                 return (
                   <TouchableOpacity
-                    style={[styles.subjectRow, { backgroundColor: colors.surface }]}
-                    onPress={() => navigation.navigate('Subject', { 
-                      subjectId: item.id, 
-                      subjectName: item.name 
-                    })}
+                    style={
+                      [
+                        styles.subjectRow, 
+                        { 
+                          backgroundColor: selectedIds.has(item.id) 
+                            ? colors.primaryDark 
+                            : colors.surface 
+                        }
+                      ]
+                    }
+                    onPress={() => {
+                      if (isSelectionMode) {
+                        toggleSelection(item.id);
+                      } else {
+                        navigation.navigate('Subject', { 
+                          subjectId: item.id, 
+                          subjectName: item.name 
+                        });
+                      }
+                    }}
+                    onLongPress={() => enterSelectionMode(item.id)}
                   >
                     <View style={styles.subjectContent}>
                       <Text style={[styles.subjectName, { color: colors.text }]}>{item.name}</Text>
@@ -183,6 +241,25 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      {/* Multi-select Action Bar */}
+      {isSelectionMode && (
+        <View style={[styles.selectionBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TouchableOpacity onPress={exitSelectionMode} style={styles.selectionButton}>
+            <Text style={{ color: colors.text, fontSize: 16 }}>Cancel</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={deleteSelectedSubjects} 
+            style={[styles.deleteButton, { backgroundColor: colors.error }]}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
+              Delete ({selectedIds.size})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
     </SafeAreaView>
   );
 }
@@ -236,7 +313,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  // Search result styles
   searchResultRow: {
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
@@ -276,5 +352,25 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '300',
     marginTop: -2,
+  },
+  selectionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderTopWidth: 1,
+  },
+  selectionButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 8,
+  },
+  deleteButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 8,
   },
 });
