@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -45,6 +45,24 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     fabScale.value = withSpring(1, { damping: 12, stiffness: 100 });
     fabOpacity.value = withTiming(1, { duration: 300 });
   }, []);
+
+  // Search bar focus animation
+  const searchBarScale = useSharedValue(1);
+  const isSearchFocused = useRef(false);
+
+  const animatedSearchBarStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: searchBarScale.value }],
+  }));
+
+  const handleSearchFocus = () => {
+    isSearchFocused.current = true;
+    searchBarScale.value = withSpring(1.02, { damping: 15, stiffness: 200 });
+  };
+
+  const handleSearchBlur = () => {
+    isSearchFocused.current = false;
+    searchBarScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+  };
 
   const loadSubjects = async () => {
     try {
@@ -162,21 +180,31 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <View style={styles.header}>
         <Text style={[styles.appName, { color: colors.text }]}>Lectify</Text>
         
-        {/* Global Search Bar */}
-        <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Global Search Bar (Animated on focus) */}
+        <Animated.View 
+          style={
+            [
+              styles.searchBar, 
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              animatedSearchBarStyle
+            ]
+          }
+        >
           <TextInput
             placeholder="Search all notes..."
             placeholderTextColor={colors.textSecondary}
             style={[styles.searchInput, { color: colors.text }]}
             value={searchQuery}
             onChangeText={handleSearch}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); setIsSearching(false); }}>
               <Text style={{ color: colors.primary, fontSize: 16 }}>✕</Text>
             </TouchableOpacity>
           )}
-        </View>
+        </Animated.View>
       </View>
 
       {/* Content: Either Search Results or Subject List */}

@@ -10,6 +10,8 @@ import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDebounce } from '@/hooks/useDebounce';
 import { AnimatedTouchable } from '@/components';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useRef } from 'react';
 
 export default function SubjectScreen({ navigation, route }: SubjectScreenProps) {
   const { colors } = useTheme();
@@ -20,6 +22,20 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const debouncedLocalQuery = useDebounce(localSearchQuery, 250);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+
+  // Search bar focus animation
+  const searchBarScale = useSharedValue(1);
+  const animatedSearchBarStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: searchBarScale.value }],
+  }));
+
+  const handleSearchFocus = () => {
+    searchBarScale.value = withSpring(1.02, { damping: 15, stiffness: 200 });
+  };
+
+  const handleSearchBlur = () => {
+    searchBarScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+  };
 
   // Load subject + its notes
   const loadData = async () => {
@@ -73,21 +89,31 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
         )}
       </View>
 
-      {/* Local Search */}
-      <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {/* Local Search (Animated on focus) */}
+      <Animated.View 
+        style={
+          [
+            styles.searchBar, 
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            animatedSearchBarStyle
+          ]
+        }
+      >
         <TextInput
           placeholder="Search notes in this subject..."
           placeholderTextColor={colors.textSecondary}
           style={[styles.searchInput, { color: colors.text }]}
           value={localSearchQuery}
           onChangeText={handleLocalSearch}
+          onFocus={handleSearchFocus}
+          onBlur={handleSearchBlur}
         />
         {localSearchQuery.length > 0 && (
           <TouchableOpacity onPress={() => { setLocalSearchQuery(''); setFilteredNotes(notes); }}>
             <Text style={{ color: colors.primary, fontSize: 16 }}>✕</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
 
       {/* Notes List */}
       <View style={styles.content}>
