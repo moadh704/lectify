@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { NoteEditorScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
+import { saveNote, getNoteById, updateNote } from '@/utils/noteStorage';
 
 export default function NoteEditorScreen({ navigation, route }: NoteEditorScreenProps) {
   const { colors } = useTheme();
-  const { subjectId, noteId } = route.params;
+  const { subjectId, noteId: initialNoteId } = route.params;
 
-  const [content, setContent] = useState('Start typing your lecture notes here...\n\n• Key concept 1\n• Key concept 2');
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [content, setContent] = useState('');
+  const [currentNoteId, setCurrentNoteId] = useState<string | undefined>(initialNoteId);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Generate dynamic auto-title
   const getAutoTitle = () => {
@@ -25,22 +27,36 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
     return `${dayName} ${monthDay}, ${time}`;
   };
 
-  const [autoTitle, setAutoTitle] = useState(getAutoTitle());
+  const [autoTitle] = useState(getAutoTitle());
 
-  // Auto-save every 3 seconds (real persistence in Step 8)
+  // Load existing note if editing
+  useEffect(() => {
+    const loadNote = async () => {
+      if (initialNoteId) {
+        const existingNote = await getNoteById(initialNoteId);
+        if (existingNote) {
+          setContent(existingNote.content);
+          setCurrentNoteId(existingNote.id);
+        }
+      } else {
+        // New note - start with empty or placeholder
+        setContent('');
+      }
+    };
+    loadNote();
+  }, [initialNoteId]);
+
+  // Auto-save every 3 seconds
   const autoSaveInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Clear previous interval
     if (autoSaveInterval.current) {
       clearInterval(autoSaveInterval.current);
     }
 
-    autoSaveInterval.current = setInterval(() => {
-      if (content.trim().length > 0) {
-        // TODO: Replace with real note save in Step 8
-        console.log('[Auto-save] Saving note content...', content.substring(0, 50) + '...');
-        setLastSaved(new Date());
+    autoSaveInterval.current = setInterval(async () => {
+      if (content.trim().length > 0 && !isSaving) {
+        await performAutoSave();
       }
     }, 3000);
 
@@ -49,7 +65,32 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
         clearInterval(autoSaveInterval.current);
       }
     };
-  }, [content]);
+  }, [content, currentNoteId, isSaving]);
+
+  const performAutoSave = async () => {
+    if (!content.trim()) return;
+
+    setIsSaving(true);
+    try {
+      if (currentNoteId) {
+        // Update existing note
+        await updateNote(currentNoteId, { content });
+      } else {
+        // Create new note
+        const newNote = await saveNote({
+          subjectId,
+          content,
+          title: autoTitle,
+        });
+        setCurrentNoteId(newNote.id);
+      }
+      console.log('[Auto-save] Note saved successfully');
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Formatting toolbar actions
   const applyBold = () => {
