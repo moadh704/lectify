@@ -5,6 +5,8 @@ import { useTheme } from '@/theme';
 import { NoteEditorScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
 import { saveNote, getNoteById, updateNote } from '@/utils/noteStorage';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 export default function NoteEditorScreen({ navigation, route }: NoteEditorScreenProps) {
   const { colors } = useTheme();
@@ -39,7 +41,6 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
           setCurrentNoteId(existingNote.id);
         }
       } else {
-        // New note - start with empty or placeholder
         setContent('');
       }
     };
@@ -73,10 +74,8 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
     setIsSaving(true);
     try {
       if (currentNoteId) {
-        // Update existing note
         await updateNote(currentNoteId, { content });
       } else {
-        // Create new note
         const newNote = await saveNote({
           subjectId,
           content,
@@ -89,6 +88,55 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
       console.error('Auto-save failed:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // PDF Export using expo-print + expo-sharing
+  const exportToPDF = async () => {
+    if (!content.trim()) {
+      Alert.alert('Nothing to export', 'Please write some content first.');
+      return;
+    }
+
+    try {
+      let htmlContent = content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/^\• (.*$)/gm, '<li>$1</li>')
+        .replace(/\n/g, '<br/>');
+
+      const html = `
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 40px; line-height: 1.6; color: #111; }
+              h1 { font-size: 24px; margin-bottom: 8px; color: #000; }
+              strong { font-weight: 700; }
+              li { margin-left: 20px; }
+            </style>
+          </head>
+          <body>
+            <h1>${autoTitle}</h1>
+            <p style="color: #666; margin-bottom: 30px;">${new Date().toLocaleDateString()}</p>
+            <div>${htmlContent}</div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share your note as PDF',
+        });
+      } else {
+        Alert.alert('Sharing not available on this device');
+      }
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      Alert.alert('Export failed', 'Could not generate PDF. Please try again.');
     }
   };
 
@@ -124,7 +172,7 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
             <Text style={[styles.back, { color: colors.primary }]}>← Back</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => { /* PDF export later */ }}>
+          <TouchableOpacity onPress={exportToPDF}>
             <Text style={[styles.share, { color: colors.primary }]}>Share</Text>
           </TouchableOpacity>
         </View>
