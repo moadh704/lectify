@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { SubjectScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
 import { getSubjects } from '@/utils/subjectStorage';
-import { Subject } from '@/types';
+import { getNotes } from '@/utils/noteStorage';
+import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function SubjectScreen({ navigation, route }: SubjectScreenProps) {
@@ -13,29 +14,45 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
   const { subjectId, subjectName } = route.params;
 
   const [subject, setSubject] = useState<Subject | null>(null);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
 
-  // Load the full subject details (including description)
-  const loadSubject = async () => {
+  // Load subject + its notes
+  const loadData = async () => {
     try {
       const allSubjects = await getSubjects();
-      const found = allSubjects.find(s => s.id === subjectId);
-      setSubject(found || null);
+      const foundSubject = allSubjects.find(s => s.id === subjectId);
+      setSubject(foundSubject || null);
+
+      const subjectNotes = await getNotes(subjectId);
+      setNotes(subjectNotes);
+      setFilteredNotes(subjectNotes);
     } catch (error) {
-      console.error('Failed to load subject', error);
+      console.error('Failed to load subject data', error);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      loadSubject();
+      loadData();
     }, [subjectId])
   );
 
-  // Placeholder notes for now (real notes come in Step 8)
-  const placeholderNotes = [
-    { id: 'n1', title: 'Lecture 3 - Derivatives', date: 'Jun 20, 10:34am' },
-    { id: 'n2', title: 'Midterm Review Notes', date: 'Jun 18, 2:15pm' },
-  ];
+  // Local search within this subject
+  const handleLocalSearch = (text: string) => {
+    setLocalSearchQuery(text);
+    if (!text.trim()) {
+      setFilteredNotes(notes);
+      return;
+    }
+    const lowerQuery = text.toLowerCase();
+    const results = notes.filter(note =>
+      note.content.toLowerCase().includes(lowerQuery) ||
+      (note.title && note.title.toLowerCase().includes(lowerQuery))
+    );
+    setFilteredNotes(results);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -55,33 +72,53 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
           placeholder="Search notes in this subject..."
           placeholderTextColor={colors.textSecondary}
           style={[styles.searchInput, { color: colors.text }]}
+          value={localSearchQuery}
+          onChangeText={handleLocalSearch}
         />
+        {localSearchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => { setLocalSearchQuery(''); setFilteredNotes(notes); }}>
+            <Text style={{ color: colors.primary, fontSize: 16 }}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Notes List */}
       <View style={styles.content}>
-        {placeholderNotes.length > 0 ? (
+        {filteredNotes.length > 0 ? (
           <FlatList
-            data={placeholderNotes}
+            data={filteredNotes}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.noteRow, { backgroundColor: colors.surface }]}
-                onPress={() => navigation.navigate('NoteEditor', { 
-                  noteId: item.id, 
-                  subjectId: subjectId 
-                })}
-              >
-                <Text style={[styles.noteTitle, { color: colors.text }]}>{item.title}</Text>
-                <Text style={[styles.noteDate, { color: colors.textSecondary }]}>{item.date}</Text>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const date = new Date(item.updatedAt);
+              const formattedDate = date.toLocaleDateString('en-US', { 
+                month: 'short', day: 'numeric' 
+              });
+
+              return (
+                <TouchableOpacity
+                  style={[styles.noteRow, { backgroundColor: colors.surface }]}
+                  onPress={() => navigation.navigate('NoteEditor', { 
+                    noteId: item.id, 
+                    subjectId: subjectId 
+                  })}
+                >
+                  <Text style={[styles.noteTitle, { color: colors.text }]} numberOfLines={1}>
+                    {item.title || item.content.substring(0, 50)}
+                  </Text>
+                  <Text style={[styles.noteDate, { color: colors.textSecondary }]}>
+                    {formattedDate}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
             ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
           />
         ) : (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No notes yet. Tap + to write one.
+              {localSearchQuery 
+                ? `No notes found for "${localSearchQuery}"` 
+                : "No notes yet. Tap + to write one."}
             </Text>
           </View>
         )}
@@ -121,8 +158,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 44,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  searchInput: { fontSize: 15 },
+  searchInput: { fontSize: 15, flex: 1 },
   content: { flex: 1, paddingHorizontal: spacing.lg },
   noteRow: {
     paddingVertical: spacing.md,
