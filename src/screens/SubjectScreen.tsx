@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -8,6 +8,7 @@ import { getSubjects } from '@/utils/subjectStorage';
 import { getNotes } from '@/utils/noteStorage';
 import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function SubjectScreen({ navigation, route }: SubjectScreenProps) {
   const { colors } = useTheme();
@@ -16,6 +17,7 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
   const [subject, setSubject] = useState<Subject | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const debouncedLocalQuery = useDebounce(localSearchQuery, 250);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
 
   // Load subject + its notes
@@ -39,20 +41,24 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
     }, [subjectId])
   );
 
-  // Local search within this subject
+  // Local search within this subject (debounced)
   const handleLocalSearch = (text: string) => {
     setLocalSearchQuery(text);
-    if (!text.trim()) {
+  };
+
+  // Apply debounced search
+  useEffect(() => {
+    if (!debouncedLocalQuery.trim()) {
       setFilteredNotes(notes);
       return;
     }
-    const lowerQuery = text.toLowerCase();
+    const lowerQuery = debouncedLocalQuery.toLowerCase();
     const results = notes.filter(note =>
       note.content.toLowerCase().includes(lowerQuery) ||
       (note.title && note.title.toLowerCase().includes(lowerQuery))
     );
     setFilteredNotes(results);
-  };
+  }, [debouncedLocalQuery, notes]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -8,11 +8,13 @@ import { getSubjects, deleteSubject } from '@/utils/subjectStorage';
 import { getNotes } from '@/utils/noteStorage';
 import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300); // 300ms debounce
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -68,16 +70,22 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   useFocusEffect(
     useCallback(() => {
       loadSubjects();
-      if (searchQuery) {
-        performGlobalSearch(searchQuery);
-      }
-    }, [searchQuery])
+    }, [])
   );
 
-  // Handle search input
+  // Trigger search only when debounced value changes
+  useEffect(() => {
+    if (debouncedSearchQuery) {
+      performGlobalSearch(debouncedSearchQuery);
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  }, [debouncedSearchQuery]);
+
+  // Handle search input (just update state, actual search is debounced)
   const handleSearch = (text: string) => {
     setSearchQuery(text);
-    performGlobalSearch(text);
   };
 
   // Multi-select helpers
