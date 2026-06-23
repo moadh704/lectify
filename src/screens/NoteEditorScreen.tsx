@@ -16,6 +16,10 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
   const [currentNoteId, setCurrentNoteId] = useState<string | undefined>(initialNoteId);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Title editing
+  const [noteTitle, setNoteTitle] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
   // Generate dynamic auto-title
   const getAutoTitle = () => {
     const now = new Date();
@@ -38,10 +42,12 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
         const existingNote = await getNoteById(initialNoteId);
         if (existingNote) {
           setContent(existingNote.content);
+          setNoteTitle(existingNote.title || '');
           setCurrentNoteId(existingNote.id);
         }
       } else {
         setContent('');
+        setNoteTitle('');
       }
     };
     loadNote();
@@ -178,8 +184,28 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
         </View>
 
         <View style={styles.titleContainer}>
-          <Text style={[styles.autoTitle, { color: colors.text }]}>{autoTitle}</Text>
-          <Text style={[styles.tapToRename, { color: colors.textSecondary }]}>Tap to rename</Text>
+          {isEditingTitle ? (
+            <TextInput
+              style={[styles.autoTitle, { color: colors.text, borderBottomWidth: 1, borderColor: colors.primary }]}
+              value={noteTitle}
+              onChangeText={setNoteTitle}
+              onBlur={async () => {
+                setIsEditingTitle(false);
+                if (currentNoteId && noteTitle.trim()) {
+                  await updateNote(currentNoteId, { title: noteTitle.trim() });
+                }
+              }}
+              onSubmitEditing={() => setIsEditingTitle(false)}
+              autoFocus
+            />
+          ) : (
+            <TouchableOpacity onPress={() => setIsEditingTitle(true)}>
+              <Text style={[styles.autoTitle, { color: colors.text }]}>
+                {noteTitle || autoTitle}
+              </Text>
+              <Text style={[styles.tapToRename, { color: colors.textSecondary }]}>Tap to rename</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Writing Area - clean and distraction-free */}
