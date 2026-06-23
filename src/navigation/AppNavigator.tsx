@@ -43,6 +43,8 @@ export default function AppNavigator() {
           contentStyle: {
             backgroundColor: colors.background,
           },
+          animation: 'slide_from_right',
+          animationDuration: 280,
         }}
       >
         <Stack.Screen 
@@ -53,7 +55,12 @@ export default function AppNavigator() {
         <Stack.Screen 
           name="NewSubject" 
           component={NewSubjectScreen} 
-          options={{ title: 'New Subject' }}
+          options={{ 
+            title: 'New Subject',
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            animationDuration: 280,
+          }}
         />
         <Stack.Screen 
           name="Subject" 
@@ -65,7 +72,12 @@ export default function AppNavigator() {
         <Stack.Screen 
           name="NoteEditor" 
           component={NoteEditorScreen} 
-          options={{ title: 'Note' }}
+          options={{ 
+            title: 'Note',
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            animationDuration: 320,
+          }}
         />
         <Stack.Screen 
           name="Settings" 
