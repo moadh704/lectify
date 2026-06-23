@@ -5,6 +5,7 @@ import { useTheme } from '@/theme';
 import { NoteEditorScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
 import { saveNote, getNoteById, updateNote } from '@/utils/noteStorage';
+import { getSettings, AppSettings } from '@/utils/settingsStorage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
@@ -19,6 +20,14 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
   // Title editing
   const [noteTitle, setNoteTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+  // Editor settings from Settings screen
+  const [editorSettings, setEditorSettings] = useState<AppSettings>({
+    themeMode: 'system',
+    fontSize: 'medium',
+    fontStyle: 'system',
+    sortOrder: 'newest',
+  });
 
   // Generate dynamic auto-title
   const getAutoTitle = () => {
@@ -35,9 +44,9 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
 
   const [autoTitle] = useState(getAutoTitle());
 
-  // Load existing note if editing
+  // Load existing note if editing + editor settings
   useEffect(() => {
-    const loadNote = async () => {
+    const loadNoteAndSettings = async () => {
       if (initialNoteId) {
         const existingNote = await getNoteById(initialNoteId);
         if (existingNote) {
@@ -49,8 +58,12 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
         setContent('');
         setNoteTitle('');
       }
+
+      // Load user font preferences
+      const savedSettings = await getSettings();
+      setEditorSettings(savedSettings);
     };
-    loadNote();
+    loadNoteAndSettings();
   }, [initialNoteId]);
 
   // Auto-save every 3 seconds
@@ -94,6 +107,23 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
       console.error('Auto-save failed:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Get dynamic styles based on user settings
+  const getEditorFontSize = () => {
+    switch (editorSettings.fontSize) {
+      case 'small': return 15;
+      case 'large': return 20;
+      default: return 17;
+    }
+  };
+
+  const getEditorFontFamily = () => {
+    switch (editorSettings.fontStyle) {
+      case 'serif': return 'Georgia';
+      case 'monospace': return 'Menlo';
+      default: return undefined;
     }
   };
 
@@ -212,7 +242,9 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
         <TextInput
           style={[styles.editor, { 
             color: colors.text,
-            backgroundColor: colors.background 
+            backgroundColor: colors.background,
+            fontSize: getEditorFontSize(),
+            fontFamily: getEditorFontFamily(),
           }]}
           value={content}
           onChangeText={setContent}
