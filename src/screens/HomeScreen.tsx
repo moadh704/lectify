@@ -9,7 +9,7 @@ import { getNotes } from '@/utils/noteStorage';
 import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDebounce } from '@/hooks/useDebounce';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
@@ -29,6 +29,21 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const animatedSelectionBarStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: selectionBarTranslateY.value }],
   }));
+
+  // FAB animation
+  const fabScale = useSharedValue(0.8);
+  const fabOpacity = useSharedValue(0);
+
+  const animatedFabStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fabScale.value }],
+    opacity: fabOpacity.value,
+  }));
+
+  // Animate FAB on mount
+  useEffect(() => {
+    fabScale.value = withSpring(1, { damping: 12, stiffness: 100 });
+    fabOpacity.value = withTiming(1, { duration: 300 });
+  }, []);
 
   const loadSubjects = async () => {
     try {
@@ -260,13 +275,22 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         )}
       </View>
 
-      {/* Floating + Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => navigation.navigate('NewSubject')}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      {/* Floating + Button (Animated) */}
+      <Animated.View style={animatedFabStyle}>
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.navigate('NewSubject')}
+          onPressIn={() => {
+            fabScale.value = withSpring(0.9, { damping: 15 });
+          }}
+          onPressOut={() => {
+            fabScale.value = withSpring(1, { damping: 12 });
+          }}
+          activeOpacity={1}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Multi-select Action Bar (Animated) */}
       <Animated.View 
