@@ -9,6 +9,7 @@ import { getNotes } from '@/utils/noteStorage';
 import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDebounce } from '@/hooks/useDebounce';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
@@ -21,6 +22,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   // Multi-select state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Animation for selection bar
+  const selectionBarTranslateY = useSharedValue(100);
+
+  const animatedSelectionBarStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: selectionBarTranslateY.value }],
+  }));
 
   const loadSubjects = async () => {
     try {
@@ -107,11 +115,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     setIsSelectionMode(true);
     const newSelected = new Set<string>([id]);
     setSelectedIds(newSelected);
+    selectionBarTranslateY.value = withTiming(0, { duration: 250 });
   };
 
   const exitSelectionMode = () => {
-    setIsSelectionMode(false);
-    setSelectedIds(new Set());
+    selectionBarTranslateY.value = withTiming(100, { duration: 200 });
+    setTimeout(() => {
+      setIsSelectionMode(false);
+      setSelectedIds(new Set());
+    }, 200);
   };
 
   const deleteSelectedSubjects = async () => {
@@ -256,23 +268,31 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
-      {/* Multi-select Action Bar */}
-      {isSelectionMode && (
-        <View style={[styles.selectionBar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TouchableOpacity onPress={exitSelectionMode} style={styles.selectionButton}>
-            <Text style={{ color: colors.text, fontSize: 16 }}>Cancel</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            onPress={deleteSelectedSubjects} 
-            style={[styles.deleteButton, { backgroundColor: colors.error }]}
-          >
-            <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
-              Delete ({selectedIds.size})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Multi-select Action Bar (Animated) */}
+      <Animated.View 
+        style={
+          [
+            styles.selectionBar, 
+            { backgroundColor: colors.surface, borderTopColor: colors.border },
+            animatedSelectionBarStyle
+          ]
+        }
+        pointerEvents={isSelectionMode ? 'auto' : 'none'}
+      >
+        <TouchableOpacity onPress={exitSelectionMode} style={styles.selectionButton}>
+          <Text style={{ color: colors.text, fontSize: 16 }}>Cancel</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          onPress={deleteSelectedSubjects} 
+          style={[styles.deleteButton, { backgroundColor: colors.error }]}
+          disabled={!isSelectionMode}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>
+            Delete ({selectedIds.size})
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
 
     </SafeAreaView>
   );
