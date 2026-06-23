@@ -1,2 +1,1 @@
-// Reusable UI components will go here
-export {};
+export { default as AnimatedTouchable } from './AnimatedTouchable';

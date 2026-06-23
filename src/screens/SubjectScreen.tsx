@@ -9,6 +9,7 @@ import { getNotes } from '@/utils/noteStorage';
 import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDebounce } from '@/hooks/useDebounce';
+import { AnimatedTouchable } from '@/components';
 
 export default function SubjectScreen({ navigation, route }: SubjectScreenProps) {
   const { colors } = useTheme();
@@ -104,7 +105,7 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
               });
 
               return (
-                <TouchableOpacity
+                <AnimatedTouchable
                   style={[styles.noteRow, { backgroundColor: colors.surface }]}
                   onPress={() => navigation.navigate('NoteEditor', { 
                     noteId: item.id, 

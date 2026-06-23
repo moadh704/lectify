@@ -10,6 +10,7 @@ import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDebounce } from '@/hooks/useDebounce';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
+import { AnimatedTouchable } from '@/components';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
@@ -193,7 +194,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
                 return (
-                  <TouchableOpacity
+                  <AnimatedTouchable
                     style={[styles.searchResultRow, { backgroundColor: colors.surface }]}
                     onPress={() => navigation.navigate('NoteEditor', { 
                       noteId: item.id, 
@@ -231,7 +232,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
                 return (
-                  <TouchableOpacity
+                  <AnimatedTouchable
                     style={
                       [
                         styles.subjectRow, 
@@ -260,7 +261,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                         {item.description || 'No description'} • Updated {formattedDate}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </AnimatedTouchable>
                 );
               }}
               ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
