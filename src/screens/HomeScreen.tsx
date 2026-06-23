@@ -1,17 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { HomeScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
 import { getSubjects } from '@/utils/subjectStorage';
-import { Subject } from '@/types';
+import { getNotes } from '@/utils/noteStorage';
+import { Subject, Note } from '@/types';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const loadSubjects = async () => {
     try {
@@ -19,17 +22,59 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setSubjects(data);
     } catch (error) {
       console.error('Failed to load subjects', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Reload subjects every time the screen comes into focus
+  // Perform global search across all notes
+  const performGlobalSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const allNotes = await getNotes(); // all notes
+      const allSubjects = await getSubjects();
+
+      const lowerQuery = query.toLowerCase();
+
+      const results = allNotes
+        .filter(note => 
+          note.content.toLowerCase().includes(lowerQuery) ||
+          (note.title && note.title.toLowerCase().includes(lowerQuery))
+        )
+        .map(note => {
+          const subject = allSubjects.find(s => s.id === note.subjectId);
+          return {
+            ...note,
+            subjectName: subject?.name || 'Unknown Subject',
+          };
+        });
+
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search failed', error);
+      setSearchResults([]);
+    }
+  };
+
+  // Reload data when screen focuses
   useFocusEffect(
     useCallback(() => {
       loadSubjects();
-    }, [])
+      if (searchQuery) {
+        performGlobalSearch(searchQuery);
+      }
+    }, [searchQuery])
   );
+
+  // Handle search input
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    performGlobalSearch(text);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -37,55 +82,97 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       <View style={styles.header}>
         <Text style={[styles.appName, { color: colors.text }]}>Lectify</Text>
         
-        {/* Global Search Bar (UI only for now) */}
+        {/* Global Search Bar */}
         <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TextInput
             placeholder="Search all notes..."
             placeholderTextColor={colors.textSecondary}
             style={[styles.searchInput, { color: colors.text }]}
+            value={searchQuery}
+            onChangeText={handleSearch}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); setIsSearching(false); }}>
+              <Text style={{ color: colors.primary, fontSize: 16 }}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
-      {/* Subjects List */}
+      {/* Content: Either Search Results or Subject List */}
       <View style={styles.content}>
-        {subjects.length > 0 ? (
-          <FlatList
-            data={subjects}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => {
-              // Format date nicely
-              const date = new Date(item.updatedAt);
-              const formattedDate = date.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
-              });
+        {searchQuery.length > 0 ? (
+          // Global Search Results
+          searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const date = new Date(item.updatedAt);
+                const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-              return (
-                <TouchableOpacity
-                  style={[styles.subjectRow, { backgroundColor: colors.surface }]}
-                  onPress={() => navigation.navigate('Subject', { 
-                    subjectId: item.id, 
-                    subjectName: item.name 
-                  })}
-                >
-                  <View style={styles.subjectContent}>
-                    <Text style={[styles.subjectName, { color: colors.text }]}>{item.name}</Text>
-                    <Text style={[styles.subjectMeta, { color: colors.textSecondary }]}>
-                      {item.description || 'No description'} • Updated {formattedDate}
+                return (
+                  <TouchableOpacity
+                    style={[styles.searchResultRow, { backgroundColor: colors.surface }]}
+                    onPress={() => navigation.navigate('NoteEditor', { 
+                      noteId: item.id, 
+                      subjectId: item.subjectId 
+                    })}
+                  >
+                    <Text style={[styles.resultTitle, { color: colors.text }]} numberOfLines={1}>
+                      {item.title || item.content.substring(0, 60)}
                     </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
-          />
+                    <Text style={[styles.resultMeta, { color: colors.textSecondary }]}>
+                      {item.subjectName} • {formattedDate}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No results found for "{searchQuery}"
+              </Text>
+            </View>
+          )
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No subjects yet. Tap + to create one.
-            </Text>
-          </View>
+          // Normal Subject List
+          subjects.length > 0 ? (
+            <FlatList
+              data={subjects}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const date = new Date(item.updatedAt);
+                const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                return (
+                  <TouchableOpacity
+                    style={[styles.subjectRow, { backgroundColor: colors.surface }]}
+                    onPress={() => navigation.navigate('Subject', { 
+                      subjectId: item.id, 
+                      subjectName: item.name 
+                    })}
+                  >
+                    <View style={styles.subjectContent}>
+                      <Text style={[styles.subjectName, { color: colors.text }]}>{item.name}</Text>
+                      <Text style={[styles.subjectMeta, { color: colors.textSecondary }]}>
+                        {item.description || 'No description'} • Updated {formattedDate}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No subjects yet. Tap + to create one.
+              </Text>
+            </View>
+          )
         )}
       </View>
 
@@ -120,9 +207,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 48,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   searchInput: {
     fontSize: 16,
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -143,6 +233,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   subjectMeta: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  // Search result styles
+  searchResultRow: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: 10,
+    marginBottom: spacing.sm,
+  },
+  resultTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resultMeta: {
     fontSize: 13,
     marginTop: 4,
   },
