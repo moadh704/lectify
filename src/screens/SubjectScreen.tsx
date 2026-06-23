@@ -94,6 +94,9 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
           <FlatList
             data={filteredNotes}
             keyExtractor={(item) => item.id}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={12}
+            windowSize={8}
             renderItem={({ item }) => {
               const date = new Date(item.updatedAt);
               const formattedDate = date.toLocaleDateString('en-US', { 

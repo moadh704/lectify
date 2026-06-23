@@ -158,6 +158,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             <FlatList
               data={searchResults}
               keyExtractor={(item) => item.id}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              windowSize={10}
               renderItem={({ item }) => {
                 const date = new Date(item.updatedAt);
                 const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -193,6 +196,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             <FlatList
               data={subjects}
               keyExtractor={(item) => item.id}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={15}
+              windowSize={10}
               renderItem={({ item }) => {
                 const date = new Date(item.updatedAt);
                 const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
