@@ -16,22 +16,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const { colors } = useTheme();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearchQuery = useDebounce(searchQuery, 300); // 300ms debounce
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Multi-select state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Animation for selection bar
   const selectionBarTranslateY = useSharedValue(100);
-
   const animatedSelectionBarStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: selectionBarTranslateY.value }],
   }));
 
-  // FAB animation
   const fabScale = useSharedValue(0.8);
   const fabOpacity = useSharedValue(0);
 
@@ -40,13 +36,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     opacity: fabOpacity.value,
   }));
 
-  // Animate FAB on mount
   useEffect(() => {
     fabScale.value = withSpring(1, { damping: 12, stiffness: 100 });
     fabOpacity.value = withTiming(1, { duration: 300 });
   }, []);
 
-  // Search bar focus animation
   const searchBarScale = useSharedValue(1);
   const isSearchFocused = useRef(false);
 
@@ -73,7 +67,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   };
 
-  // Perform global search across all notes
   const performGlobalSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -108,14 +101,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   };
 
-  // Reload data when screen focuses
   useFocusEffect(
     useCallback(() => {
       loadSubjects();
     }, [])
   );
 
-  // Trigger search only when debounced value changes
   useEffect(() => {
     if (debouncedSearchQuery) {
       performGlobalSearch(debouncedSearchQuery);
@@ -125,12 +116,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
   }, [debouncedSearchQuery]);
 
-  // Handle search input (just update state, actual search is debounced)
   const handleSearch = (text: string) => {
     setSearchQuery(text);
   };
 
-  // Multi-select helpers
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
@@ -176,19 +165,15 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.appName, { color: colors.text }]}>Lectify</Text>
         
-        {/* Global Search Bar (Animated on focus) */}
         <Animated.View 
-          style={
-            [
-              styles.searchBar, 
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              animatedSearchBarStyle
-            ]
-          }
+          style={[
+            styles.searchBar, 
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            animatedSearchBarStyle
+          ]}
         >
           <TextInput
             placeholder="Search all notes..."
@@ -207,7 +192,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         </Animated.View>
       </View>
 
-      {/* Content: Either Search Results or Subject List */}
       <View style={styles.content}>
         {searchQuery.length > 0 ? (
           searchResults.length > 0 ? (
@@ -235,7 +219,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                     <Text style={[styles.resultMeta, { color: colors.textSecondary }]}>
                       {item.subjectName} • {formattedDate}
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedTouchable>
                 );
               }}
               ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
@@ -261,16 +245,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
                 return (
                   <AnimatedTouchable
-                    style={
-                      [
-                        styles.subjectRow, 
-                        { 
-                          backgroundColor: selectedIds.has(item.id) 
-                            ? colors.primaryDark 
-                            : colors.surface 
-                        }
-                      ]
-                    }
+                    style={[
+                      styles.subjectRow, 
+                      { 
+                        backgroundColor: selectedIds.has(item.id) 
+                          ? colors.primaryDark 
+                          : colors.surface 
+                      }
+                    ]}
                     onPress={() => {
                       if (isSelectionMode) {
                         toggleSelection(item.id);
@@ -304,32 +286,24 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         )}
       </View>
 
-      {/* Floating + Button (Animated) */}
       <Animated.View style={animatedFabStyle}>
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('NewSubject')}
-          onPressIn={() => {
-            fabScale.value = withSpring(0.9, { damping: 15 });
-          }}
-          onPressOut={() => {
-            fabScale.value = withSpring(1, { damping: 12 });
-          }}
+          onPressIn={() => { fabScale.value = withSpring(0.9, { damping: 15 }); }}
+          onPressOut={() => { fabScale.value = withSpring(1, { damping: 12 }); }}
           activeOpacity={1}
         >
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Multi-select Action Bar (Animated) */}
       <Animated.View 
-        style={
-          [
-            styles.selectionBar, 
-            { backgroundColor: colors.surface, borderTopColor: colors.border },
-            animatedSelectionBarStyle
-          ]
-        }
+        style={[
+          styles.selectionBar, 
+          { backgroundColor: colors.surface, borderTopColor: colors.border },
+          animatedSelectionBarStyle
+        ]}
         pointerEvents={isSelectionMode ? 'auto' : 'none'}
       >
         <TouchableOpacity onPress={exitSelectionMode} style={styles.selectionButton}>
@@ -352,112 +326,31 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
-  appName: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-  },
+  appName: { fontSize: 28, fontWeight: '700', marginBottom: spacing.md },
   searchBar: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    height: 48,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 12, borderWidth: 1, paddingHorizontal: spacing.md, height: 48,
+    justifyContent: 'center', flexDirection: 'row', alignItems: 'center',
   },
-  searchInput: {
-    fontSize: 16,
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  subjectRow: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 10,
-    marginBottom: spacing.sm,
-  },
-  subjectContent: {
-    flexDirection: 'column',
-  },
-  subjectName: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  subjectMeta: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  searchResultRow: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 10,
-    marginBottom: spacing.sm,
-  },
-  resultTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resultMeta: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fabText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '300',
-    marginTop: -2,
-  },
-  selectionBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderTopWidth: 1,
-  },
-  selectionButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-  },
-  deleteButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-  },
+  searchInput: { fontSize: 16, flex: 1 },
+  content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  subjectRow: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: 10, marginBottom: spacing.sm },
+  subjectContent: { flexDirection: 'column' },
+  subjectName: { fontSize: 17, fontWeight: '700' },
+  subjectMeta: { fontSize: 13, marginTop: 4 },
+  searchResultRow: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: 10, marginBottom: spacing.sm },
+  resultTitle: { fontSize: 16, fontWeight: '600' },
+  resultMeta: { fontSize: 13, marginTop: 4 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
+  emptyText: { fontSize: 16, textAlign: 'center' },
+  fab: { position: 'absolute', bottom: 30, right: 24, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  fabText: { color: '#FFFFFF', fontSize: 28, fontWeight: '300', marginTop: -2 },
+  selectionBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', padding: spacing.md, borderTopWidth: 1 },
+  selectionButton: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: 8 },
+  deleteButton: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: 8 },
 });
