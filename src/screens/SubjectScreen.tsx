@@ -11,7 +11,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useDebounce } from '@/hooks/useDebounce';
 import { AnimatedTouchable } from '@/components';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { useRef } from 'react';
 
 export default function SubjectScreen({ navigation, route }: SubjectScreenProps) {
   const { colors } = useTheme();
@@ -23,7 +22,6 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
   const debouncedLocalQuery = useDebounce(localSearchQuery, 250);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
 
-  // Search bar focus animation
   const searchBarScale = useSharedValue(1);
   const animatedSearchBarStyle = useAnimatedStyle(() => ({
     transform: [{ scale: searchBarScale.value }],
@@ -37,7 +35,6 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
     searchBarScale.value = withSpring(1, { damping: 12, stiffness: 150 });
   };
 
-  // Load subject + its notes
   const loadData = async () => {
     try {
       const allSubjects = await getSubjects();
@@ -58,12 +55,10 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
     }, [subjectId])
   );
 
-  // Local search within this subject (debounced)
   const handleLocalSearch = (text: string) => {
     setLocalSearchQuery(text);
   };
 
-  // Apply debounced search
   useEffect(() => {
     if (!debouncedLocalQuery.trim()) {
       setFilteredNotes(notes);
@@ -79,7 +74,6 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.subjectName, { color: colors.text }]}>{subject?.name || subjectName}</Text>
         {subject?.description && (
@@ -89,15 +83,12 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
         )}
       </View>
 
-      {/* Local Search (Animated on focus) */}
       <Animated.View 
-        style={
-          [
-            styles.searchBar, 
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            animatedSearchBarStyle
-          ]
-        }
+        style={[
+          styles.searchBar, 
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          animatedSearchBarStyle
+        ]}
       >
         <TextInput
           placeholder="Search notes in this subject..."
@@ -115,7 +106,6 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
         )}
       </Animated.View>
 
-      {/* Notes List */}
       <View style={styles.content}>
         {filteredNotes.length > 0 ? (
           <FlatList
@@ -126,9 +116,7 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
             windowSize={8}
             renderItem={({ item }) => {
               const date = new Date(item.updatedAt);
-              const formattedDate = date.toLocaleDateString('en-US', { 
-                month: 'short', day: 'numeric' 
-              });
+              const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
               return (
                 <AnimatedTouchable
@@ -144,7 +132,7 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
                   <Text style={[styles.noteDate, { color: colors.textSecondary }]}>
                     {formattedDate}
                   </Text>
-                </TouchableOpacity>
+                </AnimatedTouchable>
               );
             }}
             ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
@@ -160,7 +148,6 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
         )}
       </View>
 
-      {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => navigation.navigate('NoteEditor', { subjectId })}
@@ -173,69 +160,17 @@ export default function SubjectScreen({ navigation, route }: SubjectScreenProps)
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  subjectName: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  description: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  searchBar: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    height: 44,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
+  subjectName: { fontSize: 22, fontWeight: '700' },
+  description: { fontSize: 14, marginTop: 2 },
+  searchBar: { marginHorizontal: spacing.lg, marginBottom: spacing.md, borderRadius: 10, borderWidth: 1, paddingHorizontal: spacing.md, height: 44, justifyContent: 'center', flexDirection: 'row', alignItems: 'center' },
   searchInput: { fontSize: 15, flex: 1 },
   content: { flex: 1, paddingHorizontal: spacing.lg },
-  noteRow: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    marginBottom: spacing.sm,
-  },
-  noteTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  noteDate: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fabText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '300',
-    marginTop: -2,
-  },
+  noteRow: { paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: 8, marginBottom: spacing.sm },
+  noteTitle: { fontSize: 16, fontWeight: '600' },
+  noteDate: { fontSize: 13, marginTop: 4 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 16, textAlign: 'center' },
+  fab: { position: 'absolute', bottom: 30, right: 24, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  fabText: { color: '#FFFFFF', fontSize: 28, fontWeight: '300', marginTop: -2 },
 });
