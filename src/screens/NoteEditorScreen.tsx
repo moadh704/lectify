@@ -196,36 +196,43 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
           )}
         </View>
 
-        {/* Rich Text Editor - Clean & Minimal */}
+        {/* Rich Text Editor - Day One Inspired (Clean & Minimal) */}
         <RichEditor
           ref={richText}
-          style={[styles.editor, { backgroundColor: colors.background }]}
+          style={[styles.editor, { 
+            backgroundColor: colors.background,
+            paddingHorizontal: spacing.lg,
+          }]}
           initialContentHTML={content}
-          placeholder="Start writing your thoughts..."
+          placeholder="Start writing..."
           editorStyle={{
             backgroundColor: colors.background,
             color: colors.text,
             placeholderColor: colors.textSecondary,
-            fontSize: 17,
-            lineHeight: 26,
+            fontSize: 18,
+            lineHeight: 28,
+            paddingTop: 8,
           }}
           onChange={(html) => {
             setContent(html);
           }}
         />
 
-        {/* Minimal Rich Text Toolbar */}
+        {/* Very Minimal Toolbar (Day One style) */}
         <RichToolbar
           editor={richText}
-          style={[styles.toolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}
-          iconTint={colors.primary}
+          style={[styles.toolbar, { 
+            backgroundColor: colors.surface, 
+            borderTopColor: colors.border,
+            height: 50,
+          }]}
+          iconTint={colors.textSecondary}
           selectedIconTint={colors.primary}
+          iconSize={20}
           actions={[
             actions.setBold,
             actions.insertBulletsList,
             actions.heading1,
-            actions.undo,
-            actions.redo,
           ]}
         />
       </KeyboardAvoidingView>
@@ -251,9 +258,14 @@ const styles = StyleSheet.create({
     fontSize: 12, marginTop: 2,
   },
   editor: {
-    flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md,
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingTop: spacing.md,
   },
   toolbar: {
     borderTopWidth: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: spacing.lg,
+    height: 52,
   },
 });
