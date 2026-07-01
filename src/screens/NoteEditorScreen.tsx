@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
 import { NoteEditorScreenProps } from '@/navigation/types';
 import { spacing } from '@/constants/spacing';
 import { saveNote, getNoteById, updateNote } from '@/utils/noteStorage';
 import { getSettings, AppSettings } from '@/utils/settingsStorage';
+import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
@@ -44,13 +45,16 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
 
   const [autoTitle] = useState(getAutoTitle());
 
+  // Rich Editor ref
+  const richText = useRef<RichEditor>(null);
+
   // Load existing note if editing + editor settings
   useEffect(() => {
     const loadNoteAndSettings = async () => {
       if (initialNoteId) {
         const existingNote = await getNoteById(initialNoteId);
         if (existingNote) {
-          setContent(existingNote.content);
+          setContent(existingNote.content || '');
           setNoteTitle(existingNote.title || '');
           setCurrentNoteId(existingNote.id);
         }
@@ -75,7 +79,7 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
     }
 
     autoSaveInterval.current = setInterval(async () => {
-      if (content.trim().length > 0 && !isSaving) {
+      if (content && content.trim() !== '<br>' && content.trim() !== '' && !isSaving) {
         await performAutoSave();
       }
     }, 3000);
@@ -88,7 +92,7 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
   }, [content, currentNoteId, isSaving]);
 
   const performAutoSave = async () => {
-    if (!content.trim()) return;
+    if (!content || content.trim() === '<br>' || content.trim() === '') return;
 
     setIsSaving(true);
     try {
@@ -110,52 +114,26 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
     }
   };
 
-  // Get dynamic styles based on user settings
-  const getEditorFontSize = () => {
-    switch (editorSettings.fontSize) {
-      case 'small': return 15;
-      case 'large': return 20;
-      default: return 17;
-    }
-  };
-
-  const getEditorFontFamily = () => {
-    switch (editorSettings.fontStyle) {
-      case 'serif': return 'Georgia';
-      case 'monospace': return 'Menlo';
-      default: return undefined;
-    }
-  };
-
   // PDF Export using expo-print + expo-sharing
   const exportToPDF = async () => {
-    if (!content.trim()) {
+    if (!content || content.trim() === '<br>' || content.trim() === '') {
       Alert.alert('Nothing to export', 'Please write some content first.');
       return;
     }
 
     try {
-      let htmlContent = content
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        .replace(/^\• (.*$)/gm, '<li>$1</li>')
-        .replace(/\n/g, '<br/>');
-
       const html = `
         <html>
           <head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
               body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 40px; line-height: 1.6; color: #111; }
-              h1 { font-size: 24px; margin-bottom: 8px; color: #000; }
-              strong { font-weight: 700; }
-              li { margin-left: 20px; }
             </style>
           </head>
           <body>
             <h1>${autoTitle}</h1>
             <p style="color: #666; margin-bottom: 30px;">${new Date().toLocaleDateString()}</p>
-            <div>${htmlContent}</div>
+            <div>${content}</div>
           </body>
         </html>
       `;
@@ -174,26 +152,6 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
       console.error('PDF export failed:', error);
       Alert.alert('Export failed', 'Could not generate PDF. Please try again.');
     }
-  };
-
-  // Formatting toolbar actions
-  const applyBold = () => {
-    const newContent = content + '**bold text**';
-    setContent(newContent);
-  };
-
-  const applyBullet = () => {
-    const newContent = content.endsWith('\n') || content === '' 
-      ? content + '• ' 
-      : content + '\n• ';
-    setContent(newContent);
-  };
-
-  const applyHeading = () => {
-    const newContent = content.endsWith('\n') || content === ''
-      ? content + '# Heading\n'
-      : content + '\n# Heading\n';
-    setContent(newContent);
   };
 
   return (
@@ -238,34 +196,38 @@ export default function NoteEditorScreen({ navigation, route }: NoteEditorScreen
           )}
         </View>
 
-        {/* Writing Area - clean and distraction-free */}
-        <TextInput
-          style={[styles.editor, { 
-            color: colors.text,
+        {/* Rich Text Editor - Clean & Minimal */}
+        <RichEditor
+          ref={richText}
+          style={[styles.editor, { backgroundColor: colors.background }]}
+          initialContentHTML={content}
+          placeholder="Start writing your thoughts..."
+          editorStyle={{
             backgroundColor: colors.background,
-            fontSize: getEditorFontSize(),
-            fontFamily: getEditorFontFamily(),
-          }]}
-          value={content}
-          onChangeText={setContent}
-          multiline
-          textAlignVertical="top"
-          placeholder="Start writing..."
-          placeholderTextColor={colors.textSecondary}
+            color: colors.text,
+            placeholderColor: colors.textSecondary,
+            fontSize: 17,
+            lineHeight: 26,
+          }}
+          onChange={(html) => {
+            setContent(html);
+          }}
         />
 
-        {/* Minimal Formatting Toolbar (pinned above keyboard) */}
-        <View style={[styles.toolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TouchableOpacity style={styles.toolButton} onPress={applyBold}>
-            <Text style={[styles.toolText, { color: colors.primary }]}>B</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolButton} onPress={applyBullet}>
-            <Text style={[styles.toolText, { color: colors.primary }]}>•</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.toolButton} onPress={applyHeading}>
-            <Text style={[styles.toolText, { color: colors.primary, fontWeight: '700' }]}>H</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Minimal Rich Text Toolbar */}
+        <RichToolbar
+          editor={richText}
+          style={[styles.toolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}
+          iconTint={colors.primary}
+          selectedIconTint={colors.primary}
+          actions={[
+            actions.setBold,
+            actions.insertBulletsList,
+            actions.heading1,
+            actions.undo,
+            actions.redo,
+          ]}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -289,15 +251,9 @@ const styles = StyleSheet.create({
     fontSize: 12, marginTop: 2,
   },
   editor: {
-    flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, fontSize: 16, lineHeight: 24,
+    flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md,
   },
   toolbar: {
-    flexDirection: 'row', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderTopWidth: 1, justifyContent: 'flex-start', gap: spacing.xl,
-  },
-  toolButton: {
-    padding: spacing.sm,
-  },
-  toolText: {
-    fontSize: 18, fontWeight: '600',
+    borderTopWidth: 1,
   },
 });
